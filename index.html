@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07111f">
+  <meta name="description" content="ESP32 and ThingSpeak multi-parameter health monitoring dashboard.">
+  <title>PulseGuard | Health Monitoring</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#" aria-label="PulseGuard home">
+        <span class="brand-mark"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 17h7l3-9 6 17 3-8h7" /></svg></span>
+        <span><b>PulseGuard</b><small>REMOTE PATIENT MONITOR</small></span>
+      </a>
+      <div class="side-label">WORKSPACE</div>
+      <nav class="nav">
+        <a class="nav-link active" href="#overview"><span>▦</span> Overview</a>
+        <a class="nav-link" href="#vitals"><span>♡</span> Vital signs</a>
+        <a class="nav-link" href="#ecg"><span>∿</span> ECG monitor</a>
+        <a class="nav-link" href="#trends"><span>⌁</span> Trends & history</a>
+        <a class="nav-link" href="#alerts"><span>♧</span> Alerts <i id="navAlertCount">0</i></a>
+      </nav>
+      <div class="side-label">SYSTEM</div>
+      <nav class="nav">
+        <a class="nav-link" href="#connection"><span>⌘</span> ESP32 connection</a>
+        <a class="nav-link" href="#settings"><span>⚙</span> Configuration</a>
+        <a class="nav-link" href="#about"><span>ⓘ</span> Project details</a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="device-mini"><span class="pulse-dot" id="sideDot"></span><div><b id="sideConnection">Not connected</b><small>DEVICE STATUS</small></div></div>
+        <div class="sidebar-foot">ENGINEERING PROJECT · v1.0</div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="icon-btn menu-btn" id="menuBtn" aria-label="Open menu">☰</button>
+        <div class="crumb">Workspace <span>/</span> <b>Overview</b></div>
+        <div class="top-actions">
+          <div class="mode-pill"><span class="pulse-dot" id="modeDot"></span><span id="modeLabel">DEMO MODE</span></div>
+          <button class="icon-btn" id="refreshBtn" title="Refresh readings" aria-label="Refresh">↻</button>
+          <div class="avatar">PG</div>
+        </div>
+      </header>
+
+      <section class="page" id="overview">
+        <div class="welcome-row">
+          <div>
+            <div class="eyebrow">IOT HEALTHCARE MONITORING SYSTEM</div>
+            <h1>Patient overview<span class="title-dot">.</span></h1>
+            <p class="subhead">A unified view of vital signs, cardiac activity and device health.</p>
+          </div>
+          <div class="header-meta"><span class="live-indicator"></span><span id="lastUpdated">Waiting for data</span></div>
+        </div>
+
+        <div class="notice" id="demoNotice"><span class="notice-icon">ⓘ</span><div><b>You're viewing sample data.</b> Connect your ThingSpeak channel in Configuration to display actual sensor readings. Demo values are simulated and must not be treated as patient measurements.</div><button id="dismissNotice" aria-label="Dismiss notice">×</button></div>
+
+        <div class="section-heading"><div><h2>Live vital signs</h2><p>Latest values received from the monitoring device</p></div><span class="tiny-label">AUTO REFRESH · <b id="refreshRateLabel">15 SEC</b></span></div>
+        <div class="vitals-grid" id="vitals">
+          <article class="metric-card">
+            <div class="metric-top"><span class="metric-icon heart">♡</span><span class="metric-tag">MAX30102</span></div>
+            <div class="metric-name">Heart rate</div>
+            <div class="metric-value"><strong id="heartRate">--</strong><span>BPM</span></div>
+            <div class="metric-foot"><span class="status-dot" id="hrDot"></span><span id="hrStatus">Awaiting reading</span><span class="metric-note">Pulse</span></div>
+            <div class="sparkline"><svg viewBox="0 0 260 42" preserveAspectRatio="none"><path id="hrSpark" d="M0 28 L260 28"/></svg></div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-top"><span class="metric-icon oxygen">◉</span><span class="metric-tag">MAX30102</span></div>
+            <div class="metric-name">Blood oxygen (SpO₂)</div>
+            <div class="metric-value"><strong id="spo2">--</strong><span>%</span></div>
+            <div class="metric-foot"><span class="status-dot" id="spo2Dot"></span><span id="spo2Status">Awaiting reading</span><span class="metric-note">Oxygen saturation</span></div>
+            <div class="progress-track"><div class="progress-fill oxygen-fill" id="spo2Bar" style="width:0%"></div></div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-top"><span class="metric-icon temp">⌁</span><span class="metric-tag">MLX90614</span></div>
+            <div class="metric-name">Temperature</div>
+            <div class="metric-value"><strong id="temperature">--</strong><span>°C</span></div>
+            <div class="metric-foot"><span class="status-dot" id="tempDot"></span><span id="tempStatus">Awaiting reading</span><span class="metric-note">Infrared</span></div>
+            <div class="range-track"><div class="range-marker" id="tempMarker" style="left:50%"></div></div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-top"><span class="metric-icon body">♨</span><span class="metric-tag">DS18B20</span></div>
+            <div class="metric-name">Probe temperature</div>
+            <div class="metric-value"><strong id="probeTemp">--</strong><span>°C</span></div>
+            <div class="metric-foot"><span class="status-dot neutral" id="probeDot"></span><span id="probeStatus">Awaiting reading</span><span class="metric-note">Digital probe</span></div>
+            <div class="metric-foot small-foot">Separate probe measurement</div>
+          </article>
+        </div>
+
+        <div class="two-col">
+          <section class="panel" id="ecg">
+            <div class="panel-head"><div><div class="panel-kicker">CARDIAC ACTIVITY</div><h2>ECG waveform</h2><p>AD8232 analog signal monitor</p></div><span class="live-chip"><i></i> <span id="ecgState">DEMO SIGNAL</span></span></div>
+            <div class="ecg-wrap">
+              <div class="ecg-grid"></div>
+              <canvas id="ecgCanvas" aria-label="ECG waveform chart"></canvas>
+              <div class="ecg-overlay"><span>ECG SIGNAL</span><b id="ecgValue">--</b><small>ADC / normalized sample</small></div>
+            </div>
+            <div class="ecg-foot"><span><i class="legend-line"></i> ECG trace</span><span id="ecgMessage">Illustrative waveform in demo mode</span></div>
+          </section>
+          <section class="panel motion-panel">
+            <div class="panel-head"><div><div class="panel-kicker">MOTION ANALYSIS</div><h2>Movement & fall status</h2><p>MPU6050 accelerometer / gyroscope</p></div><span class="metric-icon motion">⌖</span></div>
+            <div class="motion-state" id="motionState"><span class="motion-symbol">↗</span><div><b>Normal movement</b><small>Demo status · no fall detected</small></div></div>
+            <div class="axis-grid">
+              <div><small>ACCEL X</small><b id="accelX">0.02 <em>g</em></b></div>
+              <div><small>ACCEL Y</small><b id="accelY">0.01 <em>g</em></b></div>
+              <div><small>ACCEL Z</small><b id="accelZ">0.99 <em>g</em></b></div>
+            </div>
+            <div class="motion-note">Fall detection is dependent on firmware thresholds and validation. This display reports the status sent by the ESP32; it does not independently diagnose a fall.</div>
+          </section>
+        </div>
+
+        <div class="section-heading lower-heading" id="trends"><div><h2>Measurement trends</h2><p>Recent readings received from your channel</p></div><select id="trendMetric" class="select-control" aria-label="Choose trend metric"><option value="heartRate">Heart rate</option><option value="spo2">SpO₂</option><option value="temperature">MLX temperature</option><option value="probeTemp">Probe temperature</option></select></div>
+        <section class="panel trend-panel"><div class="trend-summary"><div><span id="trendTitle">Heart rate</span><strong id="trendLatest">-- <small>BPM</small></strong></div><span class="trend-range" id="trendRange">Waiting for readings</span></div><div class="chart-area"><canvas id="trendCanvas" aria-label="Measurement history chart"></canvas></div><div class="chart-xlabels"><span>Older</span><span>Recent readings</span><span>Latest</span></div></section>
+
+        <div class="bottom-grid">
+          <section class="panel" id="alerts"><div class="panel-head"><div><div class="panel-kicker">ATTENTION REQUIRED</div><h2>Recent alerts</h2></div><a href="#settings" class="text-link">Alert settings ↗</a></div><div class="alert-list" id="alertList"><div class="empty-state">No alerts yet. Incoming readings will be checked against the configured display thresholds.</div></div></section>
+          <section class="panel" id="connection"><div class="panel-head"><div><div class="panel-kicker">HARDWARE & CLOUD</div><h2>Device connection</h2></div><span class="connection-badge" id="connectionBadge">OFFLINE</span></div><div class="connection-rows"><div><span class="conn-icon">▣</span><span><b>ESP32 controller</b><small>Data source via ThingSpeak</small></span><strong id="espStatus">Not connected</strong></div><div><span class="conn-icon">☁</span><span><b>ThingSpeak cloud</b><small>Channel feed status</small></span><strong id="cloudStatus">Not configured</strong></div><div><span class="conn-icon">◉</span><span><b>Last packet</b><small>Most recent feed entry</small></span><strong id="packetTime">--</strong></div></div><a class="configure-link" href="#settings">Configure data connection <span>→</span></a></section>
+        </div>
+
+        <section class="panel settings-panel" id="settings">
+          <div class="panel-head"><div><div class="panel-kicker">CONNECT YOUR HARDWARE</div><h2>ThingSpeak configuration</h2><p>Use your channel's public read access or a read API key. Never enter your write API key here.</p></div><span class="settings-icon">⚙</span></div>
+          <form id="configForm" class="config-grid">
+            <label>Channel ID<input id="channelId" type="text" inputmode="numeric" placeholder="e.g. 2456789"></label>
+            <label>Read API key <span class="optional">(optional for public channels)</span><input id="readKey" type="password" placeholder="Enter read API key" autocomplete="off"></label>
+            <label>Refresh interval<select id="refreshInterval"><option value="15000">15 seconds</option><option value="20000">20 seconds</option><option value="30000">30 seconds</option><option value="60000">60 seconds</option></select></label>
+            <label>Data mode<select id="dataMode"><option value="thingspeak">ThingSpeak channel</option><option value="demo">Demo / preview</option></select></label>
+            <div class="field-map">
+              <div class="field-map-head"><b>ThingSpeak field mapping</b><small>Match these to the fields configured in your channel.</small></div>
+              <div class="mapping-grid">
+                <label>Heart rate<select id="mapHeart"></select></label><label>SpO₂<select id="mapSpo2"></select></label>
+                <label>MLX temperature<select id="mapTemp"></select></label><label>DS18B20 temperature<select id="mapProbe"></select></label>
+                <label>ECG sample<select id="mapEcg"></select></label><label>Motion / fall flag<select id="mapMotion"></select></label>
+              </div>
+              <p class="hint">Suggested mapping: Field 1 = BPM, 2 = SpO₂, 3 = MLX90614 °C, 4 = DS18B20 °C, 5 = ECG sample, 6 = fall flag (0/1). Configure the same mapping in your ESP32 firmware.</p>
+            </div>
+            <div class="config-actions"><button class="btn btn-primary" type="submit">Save & connect</button><button class="btn btn-secondary" type="button" id="demoBtn">Load demo data</button><span id="configMessage" role="status"></span></div>
+          </form>
+        </section>
+
+        <section class="panel guide-panel" id="about">
+          <div class="panel-head"><div><div class="panel-kicker">PROJECT REFERENCE</div><h2>System architecture</h2><p>Sensor-to-cloud-to-dashboard data flow</p></div></div>
+          <div class="architecture">
+            <div><span>⌁</span><b>5 sensors</b><small>MAX30102 · MLX90614<br>DS18B20 · MPU6050 · AD8232</small></div><i>→</i>
+            <div><span>▣</span><b>ESP32</b><small>Acquisition & processing<br>OLED + buzzer alerts</small></div><i>→</i>
+            <div><span>☁</span><b>ThingSpeak</b><small>Channel fields<br>Cloud data storage</small></div><i>→</i>
+            <div><span>▤</span><b>Website</b><small>Live dashboard<br>History & alerts</small></div>
+          </div>
+          <div class="disclaimer"><b>Important:</b> This is an academic prototype interface, not a medical device. Thresholds are configurable demonstration thresholds, and readings can be affected by sensor placement, calibration, motion and firmware. Do not use it for diagnosis or emergency decisions.</div>
+        </section>
+        <footer>PulseGuard · IoT Multi-Parameter Health Monitoring & Alert System <span>Built for ESP32 + ThingSpeak</span></footer>
+      </section>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+  <script src="app.js"></script>
+</body>
+</html>
